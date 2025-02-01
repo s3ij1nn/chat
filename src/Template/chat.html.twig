@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チャットルーム - {{ room }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f0f2f5;
+        }
+        .chat-container {
+            background: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .input-area {
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 0.5rem;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #sendButton {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="messages" id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="メッセージを入力...">
+            <button id="sendButton">送信</button>
+        </div>
+    </div>
+
+    <script>
+        const room = "{{ room }}";
+        const username = "{{ username }}";
+        
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // メッセージ送信処理
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            try {
+                const response = await fetch('/post', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room,
+                        username,
+                        message
+                    })
+                });
+
+                if (response.ok) {
+                    messageInput.value = '';
+                    loadMessages();
+                }
+            } catch (error) {
+                console.error('送信エラー:', error);
+            }
+        }
+
+        // メッセージ取得処理
+        async function loadMessages() {
+            try {
+                const response = await fetch('/get', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        room
+                    })
+                });
+                const messages = await response.json();
+
+                const shouldScroll = messagesContainer.scrollTop + messagesContainer.clientHeight === messagesContainer.scrollHeight;
+
+                messagesContainer.innerHTML = messages.map(msg => `
+                    <div class="message">
+                        <div class="message-header">
+                            <span>${msg.username}</span>
+                            <span>${new Date(msg.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div>${msg.message}</div>
+                    </div>
+                `).join('');
+                
+                if (shouldScroll) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            } catch (error) {
+                console.error('メッセージ取得エラー:', error);
+            }
+        }
+
+        // イベントリスナー
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // 定期的なメッセージ更新
+        setInterval(loadMessages, 2000);
+        loadMessages();
+    </script>
+</body>
+</html>
